@@ -1,6 +1,7 @@
 import uuid
 import time
 import logging
+import threading
 
 from flask import Flask, jsonify, request, render_template
 
@@ -22,6 +23,35 @@ db = Database()
 event_bus = EventBus()
 entitlements = EntitlementsService()
 payment_service = PaymentService()
+
+_relay_lock = threading.Lock()
+
+
+def _relay_outbox():
+    """Relay committed outbox events to the event bus (idempotent, thread-safe)."""
+    with _relay_lock:
+        for event in db.get_pending_outbox():
+            try:
+                event_bus.publish(event)
+                db.mark_outbox_published(event.get("id"))
+            except Exception as e:
+                logger.error(f"Failed to relay outbox event {event.get('id')}: {e}")
+
+
+def _start_outbox_relay():
+    """Background thread that polls the outbox so in-flight events survive crashes."""
+    def relay_loop():
+        while True:
+            try:
+                _relay_outbox()
+            except Exception as e:
+                logger.error(f"Outbox relay error: {e}")
+            time.sleep(1)
+
+    t = threading.Thread(target=relay_loop, daemon=True, name="outbox-relay")
+    t.start()
+    logger.info("Outbox relay background thread started")
+
 
 event_bus.subscribe(
     "plan_upgraded",
@@ -80,22 +110,28 @@ def _perform_upgrade(user_id: str, plan: str) -> dict:
     )
     logger.info(f"[{request_id}] Payment OK: charge_id={payment_result['charge_id']}")
 
+    event_id = f"evt_{uuid.uuid4().hex[:10]}"
     txn_id = db.begin_transaction()
     logger.info(f"[{request_id}] Updating user plan in database...")
     db.update_user(txn_id, user_id, {"plan": plan})
 
-    logger.info(f"[{request_id}] Publishing upgrade event...")
-    event_bus.publish({
+    logger.info(f"[{request_id}] Writing upgrade event to outbox...")
+    db.insert_outbox(txn_id, {
+        "id": event_id,
         "type": "plan_upgraded",
         "user_id": user_id,
         "new_plan": plan,
         "previous_plan": user["plan"],
         "charge_id": payment_result["charge_id"],
         "request_id": request_id,
+        "idempotency_key": event_id,
     })
 
     logger.info(f"[{request_id}] Committing transaction...")
     db.commit(txn_id)
+
+    logger.info(f"[{request_id}] Relaying outbox events...")
+    _relay_outbox()
 
     logger.info(f"[{request_id}] Upgrade complete")
     return {
@@ -147,4 +183,5 @@ def reset():
 
 
 if __name__ == "__main__":
+    _start_outbox_relay()
     app.run(debug=True, port=5001)
