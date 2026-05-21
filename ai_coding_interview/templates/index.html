@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StreamLine SaaS — Account</title>
+<style>
+  :root {
+    --bg: #f8fafc; --surface: #ffffff; --border: #e2e8f0;
+    --text: #1e293b; --muted: #64748b;
+    --blue: #3b82f6; --blue-dark: #2563eb;
+    --green: #22c55e; --red: #ef4444; --amber: #f59e0b;
+    --gold: #d97706; --gold-bg: #fef3c7;
+    --gray-badge: #e2e8f0; --gray-badge-text: #475569;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+  .container { max-width: 880px; margin: 0 auto; padding: 24px 16px; }
+  header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+  header h1 { font-size: 20px; font-weight: 700; }
+  header span { font-size: 13px; color: var(--muted); }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+  .card h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 16px; }
+
+  .profile-name { font-size: 18px; font-weight: 600; }
+  .profile-email { font-size: 14px; color: var(--muted); margin-bottom: 12px; }
+
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+  .badge-free { background: var(--gray-badge); color: var(--gray-badge-text); }
+  .badge-premium { background: var(--gold-bg); color: var(--gold); }
+
+  .feature-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+  .feature-row:last-child { border-bottom: none; }
+  .feature-icon { width: 20px; text-align: center; font-weight: 700; font-size: 15px; }
+  .feature-on { color: var(--green); }
+  .feature-off { color: var(--border); }
+
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+  .btn-primary { background: var(--blue); color: #fff; }
+  .btn-primary:hover { background: var(--blue-dark); }
+  .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+  .btn-sm { padding: 6px 12px; font-size: 12px; border-radius: 6px; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  .btn-outline:hover { background: var(--bg); }
+  .btn-danger { background: transparent; border: 1px solid var(--red); color: var(--red); }
+  .btn-danger:hover { background: #fef2f2; }
+
+  .upgrade-section { margin-top: 16px; }
+
+  .alert { padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; display: none; }
+  .alert-error { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+  .alert-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
+  .alert-warning { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+
+  .debug-panel { margin-top: 24px; }
+  .debug-toggle { font-size: 13px; color: var(--muted); cursor: pointer; user-select: none; }
+  .debug-toggle:hover { color: var(--text); }
+  .debug-body { display: none; margin-top: 12px; }
+  .debug-body.open { display: block; }
+  .debug-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .log-box { background: #1e293b; color: #e2e8f0; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; padding: 12px; border-radius: 8px; max-height: 260px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
+
+  .spinner { display: none; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.6s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>StreamLine SaaS</h1>
+    <span>Account Dashboard</span>
+  </header>
+
+  <div id="alert-bar" class="alert"></div>
+
+  <div class="grid">
+    <!-- Profile Card -->
+    <div class="card">
+      <h2>Profile</h2>
+      <div class="profile-name" id="user-name">—</div>
+      <div class="profile-email" id="user-email">—</div>
+      <div style="margin-bottom:16px;">
+        Plan: <span id="plan-badge" class="badge badge-free">—</span>
+      </div>
+      <div class="upgrade-section">
+        <button class="btn btn-primary" id="upgrade-btn" onclick="doUpgrade()">
+          <span>Upgrade to Premium — $9.99</span>
+          <div class="spinner" id="upgrade-spinner"></div>
+        </button>
+      </div>
+    </div>
+
+    <!-- Features Card -->
+    <div class="card">
+      <h2>Features</h2>
+      <div id="features-list"></div>
+    </div>
+  </div>
+
+  <!-- Debug Panel -->
+  <div class="debug-panel">
+    <div class="debug-toggle" onclick="toggleDebug()">&#9881; Debug Panel</div>
+    <div class="debug-body" id="debug-body">
+      <div class="debug-actions">
+        <button class="btn btn-sm btn-danger" onclick="forceFailAndUpgrade()">Force DB Failure + Upgrade</button>
+        <button class="btn btn-sm btn-outline" onclick="checkState()">Check Consistency</button>
+        <button class="btn btn-sm btn-outline" onclick="resetState()">Reset State</button>
+      </div>
+      <div class="log-box" id="log-box">Ready.\n</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const FEATURE_LABELS = {
+  api_access: "API Access",
+  export_csv: "CSV Export",
+  advanced_analytics: "Advanced Analytics",
+  priority_support: "Priority Support",
+  custom_integrations: "Custom Integrations",
+};
+
+function log(msg) {
+  const box = document.getElementById("log-box");
+  const ts = new Date().toLocaleTimeString();
+  box.textContent += `[${ts}] ${msg}\n`;
+  box.scrollTop = box.scrollHeight;
+}
+
+function showAlert(type, message) {
+  const el = document.getElementById("alert-bar");
+  el.className = `alert alert-${type}`;
+  el.textContent = message;
+  el.style.display = "block";
+  if (type !== "warning") setTimeout(() => { el.style.display = "none"; }, 5000);
+}
+
+function toggleDebug() {
+  document.getElementById("debug-body").classList.toggle("open");
+}
+
+function renderProfile(user) {
+  document.getElementById("user-name").textContent = user.name;
+  document.getElementById("user-email").textContent = user.email;
+
+  const badge = document.getElementById("plan-badge");
+  badge.textContent = user.plan.charAt(0).toUpperCase() + user.plan.slice(1);
+  badge.className = `badge badge-${user.plan}`;
+
+  const btn = document.getElementById("upgrade-btn");
+  if (user.plan === "premium") {
+    btn.disabled = true;
+    btn.querySelector("span").textContent = "Current Plan: Premium";
+  } else {
+    btn.disabled = false;
+    btn.querySelector("span").textContent = "Upgrade to Premium — $9.99";
+  }
+}
+
+function renderFeatures(features) {
+  const container = document.getElementById("features-list");
+  container.innerHTML = "";
+  for (const [key, enabled] of Object.entries(features)) {
+    const label = FEATURE_LABELS[key] || key;
+    const row = document.createElement("div");
+    row.className = "feature-row";
+    row.innerHTML = `
+      <span>${label}</span>
+      <span class="feature-icon ${enabled ? 'feature-on' : 'feature-off'}">${enabled ? '&#10003;' : '&#10005;'}</span>
+    `;
+    container.appendChild(row);
+  }
+}
+
+async function refresh() {
+  try {
+    const resp = await fetch("/api/user/user_1");
+    const data = await resp.json();
+    renderProfile(data.user);
+    renderFeatures(data.features);
+  } catch (e) {
+    log("Failed to refresh: " + e.message);
+  }
+}
+
+async function doUpgrade() {
+  const btn = document.getElementById("upgrade-btn");
+  const spinner = document.getElementById("upgrade-spinner");
+  btn.disabled = true;
+  spinner.style.display = "inline-block";
+  log("Starting upgrade...");
+
+  try {
+    const resp = await fetch("/api/upgrade", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: "user_1", plan: "premium" }),
+    });
+    const data = await resp.json();
+
+    if (!resp.ok) {
+      showAlert("error", "Upgrade failed. Please try again.");
+      log("ERROR: " + JSON.stringify(data));
+    } else {
+      showAlert("success", "Upgrade successful!");
+      log("OK: " + JSON.stringify(data));
+    }
+  } catch (e) {
+    showAlert("error", "Network error. Please try again.");
+    log("NETWORK ERROR: " + e.message);
+  } finally {
+    spinner.style.display = "none";
+    await refresh();
+    btn.disabled = false;
+  }
+}
+
+async function forceFailAndUpgrade() {
+  log("Forcing next 3 DB commits to fail (exhausts retry budget)...");
+  await fetch("/api/debug/force-fail", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ count: 3 }),
+  });
+  log("DB failure armed. Attempting upgrade...");
+  await doUpgrade();
+  log("Check the Profile vs Features cards above — do they match?");
+}
+
+async function checkState() {
+  log("Checking system consistency...");
+  const resp = await fetch("/api/debug/state");
+  const data = await resp.json();
+  const c = data.consistency;
+  if (c.is_consistent) {
+    showAlert("success", "System is consistent.");
+    log("CONSISTENT: plan=" + c.user_plan + ", features match expectations.");
+  } else {
+    showAlert("warning", "Inconsistency detected — user plan and features do not match.");
+    log("INCONSISTENT: plan=" + c.user_plan);
+    log("  expected: " + JSON.stringify(c.expected_features));
+    log("  actual:   " + JSON.stringify(c.actual_features));
+  }
+  log("Events published: " + data.event_log.length + ", Outbox: " + data.outbox.length);
+}
+
+async function resetState() {
+  await fetch("/api/reset", { method: "POST" });
+  showAlert("success", "State reset to initial conditions.");
+  log("State reset.");
+  await refresh();
+}
+
+// Poll every 3 seconds
+refresh();
+setInterval(refresh, 3000);
+</script>
+</body>
+</html>
